@@ -1,0 +1,32 @@
+# Stack build artifacts
+.stack-work/
+
+# Cabal build artifacts (if cabal used directly)
+dist/
+dist-newstyle/
+
+# Haskell package metadata
+*.hi
+*.o
+*.dyn_o
+*.dyn_hi
+
+# Executables
+*.exe
+*.out
+*.app
+*.ipkg
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# IDEs/editors
+.vscode/
+.idea/
+*.iml
+*.swp
+*~
+
+# Mac-specific file metadata
+__MACOSX/
