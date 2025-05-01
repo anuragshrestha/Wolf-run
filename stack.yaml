@@ -1,0 +1,11 @@
+resolver: lts-22.42
+
+packages:
+  - .
+  - /Users/anuragshrestha/Brillo/brillo
+  - /Users/anuragshrestha/Brillo/brillo-algorithms
+  - /Users/anuragshrestha/Brillo/brillo-rendering
+  - /Users/anuragshrestha/Brillo/brillo-juicy
+
+extra-deps:
+  - text-2.1.2@sha256:2898d240693a61911efc6e9f9dd3f05a1561684b0c42da964b76ae6463dba754,10989
