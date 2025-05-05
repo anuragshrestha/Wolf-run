@@ -6,7 +6,6 @@ module GameState where
 import Wolf
 import Obstacle
 
-
 data GamePhase = StartScreen | Playing | GameOver
     deriving (Eq, Show)
 

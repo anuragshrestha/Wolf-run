@@ -10,34 +10,34 @@ import Brillo.Interface.IO.Game
 import Brillo.Data.Picture()
 import Brillo.Data.Color()
 import Linear()
-import qualified Data.Text as T
 import Wolf (Wolf(..))
 import Obstacle (Obstacle(..), ObstacleType(..))
+
 
 import GameState
 
 gameStep :: Float -> GameState -> GameState
 gameStep _ gs = gs
 
-drawGame :: GameState -> Picture
-drawGame gs =
+drawGame :: Picture -> GameState -> Picture
+drawGame wolfBMP gs =
     case phase gs of
         StartScreen ->
             drawTextCentered "Press SPACE to Start" 0
         Playing ->
             pictures
-                [ drawWolf (wolf gs)
+                [ drawWolf wolfBMP (wolf gs)
                 , drawObstacles (obstacles gs)
                 , drawScore (score gs)
                 ]
         GameOver ->
             drawTextCentered "Game Over! Press R to Restart" 0
 
-drawWolf :: Wolf -> Picture
-drawWolf w =
+drawWolf :: Picture -> Wolf -> Picture
+drawWolf wolfBMP w =
     translate (wolfX w) (wolfY w) $
-      color black $
-        rectangleSolid 50 50 -- temporary box for wolf
+    scale 0.25 0.25 
+    wolfBMP
 
 drawObstacles :: [Obstacle] -> Picture
 drawObstacles = pictures . map drawObstacle
@@ -53,7 +53,7 @@ drawObstacle o =
 
 drawScore :: Int -> Picture
 drawScore s = translate (-500) 350 $ scale 0.3 0.3 $
-    text (T.pack ("Score: " ++ show s))
+    text ("Score: " ++ show s)
 
 handleEvent :: Event -> GameState -> GameState
 handleEvent (EventKey (SpecialKey KeySpace) Down _ _) gs
@@ -63,5 +63,6 @@ handleEvent _ gs = gs
 drawTextCentered :: String -> Float -> Picture
 drawTextCentered txt y =
     translate (-200) y $
+        scale 0.5 0.5 $ 
         color black $
-            text (T.pack txt)
+            text txt
