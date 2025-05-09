@@ -17,7 +17,13 @@ import Obstacle (Obstacle(..), ObstacleType(..))
 import GameState
 
 gameStep :: Float -> GameState -> GameState
-gameStep _ gs = gs
+gameStep dt gs
+  | phase gs == Playing =
+      let w       = wolf gs
+          dx      = speed gs * dt
+          w'      = w { wolfX = wolfX w + dx }
+      in gs { wolf = w' }
+  | otherwise = gs
 
 drawGame :: Picture -> GameState -> Picture
 drawGame wolfBMP gs =
