@@ -5,16 +5,25 @@ module GameState where
 
 import Wolf
 import Obstacle
+import System.Random (StdGen)
 
+
+-- Enum for current screen state.
 data GamePhase = StartScreen | Playing | GameOver
     deriving (Eq, Show)
 
+
+-- Holds the entire game state (player, obstacles, score, speed, and current phase.
 data GameState = GameState
-    { wolf      :: Wolf
-    , obstacles :: [Obstacle]
-    , score     :: Int
-    , speed     :: Float
-    , phase     :: GamePhase
-    } deriving (Show)
+    { wolf         :: Wolf
+    , obstacles    :: [Obstacle]
+    , score        :: Int
+    , speed        :: Float
+    , phase        :: GamePhase
+    , frameCounter :: Int
+    , rng          :: StdGen
+    }
+
+
 
        

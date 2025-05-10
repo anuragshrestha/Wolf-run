@@ -3,9 +3,13 @@
 
 module Obstacle where
 
+
+-- Defines the Enum of obstacle types.
 data ObstacleType = Log | Rock | Cloud
     deriving (Eq, Show)
 
+
+-- 	Represents an obstacle with position and type.
 data Obstacle = Obstacle
     { obsX  :: Float
     , obsY  :: Float

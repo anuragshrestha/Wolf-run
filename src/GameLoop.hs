@@ -4,40 +4,97 @@
 
 
 module GameLoop where
-
 import Brillo
 import Brillo.Interface.IO.Game
 import Brillo.Data.Picture()
 import Brillo.Data.Color()
 import Linear()
-import Wolf (Wolf(..))
+import Wolf (Wolf(..), WolfStatus(..), jumpVelocity, gravity)
 import Obstacle (Obstacle(..), ObstacleType(..))
-
-
+import System.Random (StdGen, randomR)
 import GameState
+
+
+
+
+-- If the game is in playing phase then it moves the wolf by a certain distance
+-- and return the updated wolf state
+-- else if its in starting phase or game over phase then returns unchanged state.
 
 gameStep :: Float -> GameState -> GameState
 gameStep dt gs
   | phase gs == Playing =
-      let w       = wolf gs
-          dx      = speed gs * dt
-          w'      = w { wolfX = wolfX w + dx }
-      in gs { wolf = w' }
+      let w       = updateWolf dt (wolf gs)
+          spd     = speed gs + 1
+          fc      = frameCounter gs + 1
+          (obs', newGen) =
+            if fc `mod` 90 == 0 then
+              let (newType, g') = randomObstacleType (rng gs)
+                  newObs = Obstacle (wolfX w + 400) (wolfY w) newType
+              in (obstacles gs ++ [newObs], g')
+            else (obstacles gs, rng gs)
+      in gs { wolf = w, speed = spd, frameCounter = fc, obstacles = obs', rng = newGen }
   | otherwise = gs
 
-drawGame :: Picture -> GameState -> Picture
-drawGame wolfBMP gs =
+
+-- updates the wolf position
+updateWolf :: Float -> Wolf -> Wolf
+updateWolf dt w = case status w of
+    Jumping -> 
+        let vy = velocityY w + gravity
+            y  = wolfY w + vy
+            x  = wolfX w + speedX
+            speedX = 65 * dt  -- move forward while jumping
+        in if y <= 0
+           then w { wolfY = 0, velocityY = 0, status = Running, wolfX = x }
+           else w { wolfY = y, velocityY = vy, wolfX = x }
+    Docking ->
+        let x = wolfX w + 45 * dt
+        in w { wolfX = x }
+    Running ->
+        let x = wolfX w + 45 * dt
+        in w { wolfX = x }
+
+
+-- genartes the obstacles
+generateObstacles :: Wolf -> [Obstacle]
+generateObstacles w = 
+    [ Obstacle (wolfX w + 200) (wolfY w) Rock
+    , Obstacle (wolfX w + 1000) (wolfY w) Log
+    , Obstacle (wolfX w + 2000) (wolfY w) Cloud
+    ]
+
+
+-- generated random obstacles
+randomObstacleType :: StdGen -> (ObstacleType, StdGen)
+randomObstacleType gen =
+    let (n, newGen) = randomR (0 :: Int, 2) gen
+        obstacleType = case n of
+                  0 -> Rock
+                  1 -> Log
+                  _ -> Cloud
+    in (obstacleType, newGen)
+
+-- checks the currrent state of the game.
+-- If its in StartScren phase then draws a Text
+-- If its in playing state then renders wolf, obstacle and score.
+-- If its in GameOver state then draws a text.
+
+drawGame :: Picture -> Picture -> Picture -> Picture -> GameState -> Picture
+drawGame wolfBMP rockBMP logBMP cloudBMP gs =
     case phase gs of
         StartScreen ->
             drawTextCentered "Press SPACE to Start" 0
         Playing ->
             pictures
                 [ drawWolf wolfBMP (wolf gs)
-                , drawObstacles (obstacles gs)
+                , drawObstacles rockBMP logBMP cloudBMP (obstacles gs)
                 , drawScore (score gs)
                 ]
         GameOver ->
             drawTextCentered "Game Over! Press R to Restart" 0
+
+
 
 drawWolf :: Picture -> Wolf -> Picture
 drawWolf wolfBMP w =
@@ -45,27 +102,49 @@ drawWolf wolfBMP w =
     scale 0.25 0.25 
     wolfBMP
 
-drawObstacles :: [Obstacle] -> Picture
-drawObstacles = pictures . map drawObstacle
 
-drawObstacle :: Obstacle -> Picture
-drawObstacle o =
-    translate (obsX o) (obsY o) $
-      color red $
-        case otype o of
-            Log   -> rectangleSolid 60 20
-            Rock  -> circleSolid 15
-            Cloud -> scale 1.5 1.0 $ circleSolid 10
+-- 	Maps over the obstacle list and draws each one, combining into a single picture.
+drawObstacles :: Picture -> Picture -> Picture -> [Obstacle] -> Picture
+drawObstacles rockBMP logBMP cloudBMP = pictures . map (drawObstacle rockBMP logBMP cloudBMP)
 
+
+-- Draws a red obstacle based on its type and position.
+drawObstacle :: Picture -> Picture -> Picture -> Obstacle -> Picture
+drawObstacle rockBMP logBMP cloudBMP o =
+    let scaledImage = case otype o of
+                         Rock  -> scale 0.3 0.13 rockBMP
+                         Log   -> scale 0.3 0.3 logBMP
+                         Cloud -> scale 0.3 0.3 cloudBMP
+    in translate (obsX o) (obsY o) scaledImage
+
+
+-- Displays score text in top-left.
 drawScore :: Int -> Picture
 drawScore s = translate (-500) 350 $ scale 0.3 0.3 $
     text ("Score: " ++ show s)
 
+
+-- If the spacebar is pressed while on the start screen, switch to “Playing”.
+--  If the game is in playing phase and user press space bar then the wolf
+-- jumps. If the user press 's' and the game is in playing phase then the user
+-- docks and if the user release the 's' char then the wolf comes back to running
+-- phase.
 handleEvent :: Event -> GameState -> GameState
 handleEvent (EventKey (SpecialKey KeySpace) Down _ _) gs
     | phase gs == StartScreen = gs { phase = Playing }
+    | phase gs == Playing && status (wolf gs) == Running =
+        gs { wolf = (wolf gs) { velocityY = jumpVelocity, status = Jumping } }
+
+handleEvent (EventKey (Char 's') Down _ _) gs
+    | phase gs == Playing = gs { wolf = (wolf gs) { status = Docking } }
+
+handleEvent (EventKey (Char 's') Up _ _) gs
+    | phase gs == Playing = gs { wolf = (wolf gs) { status = Running } }
+
 handleEvent _ gs = gs
 
+
+--	Draws centered black text at given Y coordinate.
 drawTextCentered :: String -> Float -> Picture
 drawTextCentered txt y =
     translate (-200) y $

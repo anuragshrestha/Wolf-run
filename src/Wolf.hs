@@ -4,9 +4,13 @@
 
 module Wolf where
 
+
+-- Enum to track wolf’s movement status
 data WolfStatus = Running | Jumping | Docking
     deriving (Eq, Show)
 
+
+-- Represents the wolf’s position, vertical motion, and current state.
 data Wolf = Wolf
     { wolfX      :: Float
     , wolfY      :: Float
@@ -21,5 +25,7 @@ jumpVelocity = 10
 gravity :: Float
 gravity = -0.5
 
+
+--The wolf starts at x = 100, y = 0, no vertical motion, and is running.
 defaultWolf :: Wolf
 defaultWolf = Wolf 100 0 0 Running
