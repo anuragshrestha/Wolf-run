@@ -28,7 +28,7 @@ cloudY = 40
 gameStep :: Float -> GameState -> GameState
 gameStep dt gs
   | phase gs == Playing =
-      let spd  = speed gs + 3 * dt
+      let spd  = speed gs + 5 * dt
           w    = updateWolf dt spd (wolf gs)
 
           -- accumulate time for the 1‑point‑per‑second counter
@@ -45,8 +45,8 @@ gameStep dt gs
             if wolfX' - lastObstacleX gs >= 400
                then let (newType, g') = randomObstacleType (rng gs)
                         newObsY = if newType == Cloud then cloudY else 0
-                        newObs  = Obstacle (wolfX' + 400) newObsY newType
-                    in (obstacles gs ++ [newObs], wolfX' + 400, g')
+                        newObs  = Obstacle (wolfX' + 800) newObsY newType
+                    in (obstacles gs ++ [newObs], wolfX' + 600, g')
                else (obstacles gs, lastObstacleX gs, rng gs)
 
       in gs { wolf         = w
@@ -83,12 +83,12 @@ updateWolf dt spd w = case status w of
 
 
 
--- genartes the obstacles
+-- genartes the intial obstacles
 generateObstacles :: Wolf -> [Obstacle]
 generateObstacles w = 
-    [ Obstacle (wolfX w + 600) 0 Rock
-    , Obstacle (wolfX w + 1000) 0 Log
-    , Obstacle (wolfX w + 1400) cloudY Cloud
+    [ Obstacle (wolfX w + 900) 0 Rock
+    , Obstacle (wolfX w + 1600) 0 Log
+    , Obstacle (wolfX w + 2300) cloudY Cloud
     ]
 
 
@@ -110,7 +110,7 @@ randomObstacleType gen =
 -- If its in GameOver state then draws a text.
 drawGame :: Picture -> Picture -> Picture -> Picture -> GameState -> Picture
 drawGame wolfBMP rockBMP logBMP cloudBMP gs =
-  let camX     = wolfX (wolf gs) - 200
+  let camX     = wolfX (wolf gs) + 250
       skyBlue  = makeColorI 135 206 235 255
       worldPic =
             translate (-camX) 0 $ pictures
@@ -126,12 +126,20 @@ drawGame wolfBMP rockBMP logBMP cloudBMP gs =
 
 
 
-
+-- Draws the wolf and during play, if gamer press
+-- 's' then it docks.
 drawWolf :: Picture -> Wolf -> Picture
 drawWolf wolfBMP w =
-    translate (wolfX w) (wolfY w) $
-    scale 1.4 1.4
-    wolfBMP
+  let crouching = status w == Docking
+      -- normal scale = 1.4×1.4 ; crouch keeps width but halves height
+      sx        = 1.4
+      sy        = if crouching then 0.8 else 1.4
+      -- drop it ~18 px so the feet stay on y = 0 when squashed
+      yOffset   = if crouching then -18 else 0
+  in translate (wolfX w)
+               (wolfY w + yOffset) $
+       scale sx sy wolfBMP
+
 
 
 -- 	Maps over the obstacle list and draws each one, combining into a single picture.

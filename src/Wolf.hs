@@ -28,4 +28,4 @@ gravity = -0.5
 
 --The wolf starts at x = 100, y = 0, no vertical motion, and is running.
 defaultWolf :: Wolf
-defaultWolf = Wolf 100 0 0 Running
+defaultWolf = Wolf 30 0 0 Running
