@@ -24,16 +24,30 @@ import GameState
 gameStep :: Float -> GameState -> GameState
 gameStep dt gs
   | phase gs == Playing =
-      let w       = updateWolf dt (wolf gs)
-          spd     = speed gs + 1
-          fc      = frameCounter gs + 1
-          (obs', newGen) =
-            if fc `mod` 90 == 0 then
+      let w   = updateWolf dt (wolf gs)
+          spd = speed gs + 1
+          fc  = frameCounter gs + 1
+          wolfX' = wolfX w
+
+          -- Check if we are far enough to spawn a new obstacle
+          (obs', newLastX, newGen) =
+            if wolfX' - lastObstacleX gs >= 300 then
               let (newType, g') = randomObstacleType (rng gs)
-                  newObs = Obstacle (wolfX w + 400) (wolfY w) newType
-              in (obstacles gs ++ [newObs], g')
-            else (obstacles gs, rng gs)
-      in gs { wolf = w, speed = spd, frameCounter = fc, obstacles = obs', rng = newGen }
+                  newObsY = case newType of
+                              Cloud -> 300
+                              _     -> 0
+                  newObs = Obstacle (wolfX' + 250) newObsY newType
+              in (obstacles gs ++ [newObs], wolfX' + 250, g')
+            else (obstacles gs, lastObstacleX gs, rng gs)
+
+      in gs { wolf = w
+            , speed = spd
+            , frameCounter = fc
+            , obstacles = obs'
+            , lastObstacleX = newLastX
+            , rng = newGen
+            }
+
   | otherwise = gs
 
 
@@ -44,7 +58,7 @@ updateWolf dt w = case status w of
         let vy = velocityY w + gravity
             y  = wolfY w + vy
             x  = wolfX w + speedX
-            speedX = 65 * dt  -- move forward while jumping
+            speedX = 400 * dt 
         in if y <= 0
            then w { wolfY = 0, velocityY = 0, status = Running, wolfX = x }
            else w { wolfY = y, velocityY = vy, wolfX = x }
@@ -56,12 +70,13 @@ updateWolf dt w = case status w of
         in w { wolfX = x }
 
 
+
 -- genartes the obstacles
 generateObstacles :: Wolf -> [Obstacle]
 generateObstacles w = 
-    [ Obstacle (wolfX w + 200) (wolfY w) Rock
-    , Obstacle (wolfX w + 1000) (wolfY w) Log
-    , Obstacle (wolfX w + 2000) (wolfY w) Cloud
+    [ Obstacle (wolfX w + 600) 0 Rock
+    , Obstacle (wolfX w + 1000) 0 Log
+    , Obstacle (wolfX w + 1400) 40 Cloud
     ]
 
 
@@ -82,11 +97,12 @@ randomObstacleType gen =
 
 drawGame :: Picture -> Picture -> Picture -> Picture -> GameState -> Picture
 drawGame wolfBMP rockBMP logBMP cloudBMP gs =
-    case phase gs of
+    let camX = wolfX (wolf gs) - 200 
+    in case phase gs of
         StartScreen ->
             drawTextCentered "Press SPACE to Start" 0
         Playing ->
-            pictures
+            translate (-camX) 0 $ pictures
                 [ drawWolf wolfBMP (wolf gs)
                 , drawObstacles rockBMP logBMP cloudBMP (obstacles gs)
                 , drawScore (score gs)
@@ -99,7 +115,7 @@ drawGame wolfBMP rockBMP logBMP cloudBMP gs =
 drawWolf :: Picture -> Wolf -> Picture
 drawWolf wolfBMP w =
     translate (wolfX w) (wolfY w) $
-    scale 0.25 0.25 
+    scale 0.15 0.15 
     wolfBMP
 
 
@@ -112,10 +128,13 @@ drawObstacles rockBMP logBMP cloudBMP = pictures . map (drawObstacle rockBMP log
 drawObstacle :: Picture -> Picture -> Picture -> Obstacle -> Picture
 drawObstacle rockBMP logBMP cloudBMP o =
     let scaledImage = case otype o of
-                         Rock  -> scale 0.3 0.13 rockBMP
+                         Rock  -> scale 0.3 0.3 rockBMP
                          Log   -> scale 0.3 0.3 logBMP
                          Cloud -> scale 0.3 0.3 cloudBMP
-    in translate (obsX o) (obsY o) scaledImage
+        yOffset = case otype o of
+                    Cloud -> 0  
+                    _     -> -20 
+    in translate (obsX o) (obsY o + yOffset) scaledImage
 
 
 -- Displays score text in top-left.
