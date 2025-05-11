@@ -16,6 +16,10 @@ import GameState
 
 
 
+cloudY :: Float
+cloudY = 40  
+
+
 
 -- If the game is in playing phase then it moves the wolf by a certain distance
 -- and return the updated wolf state
@@ -24,27 +28,35 @@ import GameState
 gameStep :: Float -> GameState -> GameState
 gameStep dt gs
   | phase gs == Playing =
-      let spd = speed gs + 3 * dt  
-          w   = updateWolf dt spd (wolf gs)  
-          fc  = frameCounter gs + 1
+      let spd  = speed gs + 3 * dt
+          w    = updateWolf dt spd (wolf gs)
+
+          -- accumulate time for the 1‑point‑per‑second counter
+          clk' = scoreClock gs + dt
+          (sc', clk'') =
+              if clk' >= 1
+                 then (score gs + 1, clk' - 1)   
+                 else (score gs    , clk')      
+
+          fc   = frameCounter gs + 1
           wolfX' = wolfX w
 
           (obs', newLastX, newGen) =
-            if wolfX' - lastObstacleX gs >= 300 then
-              let (newType, g') = randomObstacleType (rng gs)
-                  newObsY = case newType of
-                              Cloud -> 300
-                              _     -> 0
-                  newObs = Obstacle (wolfX' + 250) newObsY newType
-              in (obstacles gs ++ [newObs], wolfX' + 250, g')
-            else (obstacles gs, lastObstacleX gs, rng gs)
+            if wolfX' - lastObstacleX gs >= 400
+               then let (newType, g') = randomObstacleType (rng gs)
+                        newObsY = if newType == Cloud then cloudY else 0
+                        newObs  = Obstacle (wolfX' + 400) newObsY newType
+                    in (obstacles gs ++ [newObs], wolfX' + 400, g')
+               else (obstacles gs, lastObstacleX gs, rng gs)
 
-      in gs { wolf = w
-            , speed = spd
+      in gs { wolf         = w
+            , speed        = spd
+            , score        = sc'
+            , scoreClock   = clk''  
             , frameCounter = fc
-            , obstacles = obs'
+            , obstacles    = obs'
             , lastObstacleX = newLastX
-            , rng = newGen
+            , rng          = newGen
             }
 
   | otherwise = gs
@@ -56,7 +68,7 @@ updateWolf dt spd w = case status w of
     Jumping -> 
         let vy = velocityY w + gravity
             y  = wolfY w + vy
-            x  = wolfX w + (spd * 4.8) * dt 
+            x  = wolfX w + (spd * 4) * dt 
         in if y <= 0
            then w { wolfY = 0, velocityY = 0, status = Running, wolfX = x }
            else w { wolfY = y, velocityY = vy, wolfX = x }
@@ -76,7 +88,7 @@ generateObstacles :: Wolf -> [Obstacle]
 generateObstacles w = 
     [ Obstacle (wolfX w + 600) 0 Rock
     , Obstacle (wolfX w + 1000) 0 Log
-    , Obstacle (wolfX w + 1400) 40 Cloud
+    , Obstacle (wolfX w + 1400) cloudY Cloud
     ]
 
 
@@ -90,35 +102,35 @@ randomObstacleType gen =
                   _ -> Cloud
     in (obstacleType, newGen)
 
+
+
 -- checks the currrent state of the game.
 -- If its in StartScren phase then draws a Text
 -- If its in playing state then renders wolf, obstacle and score.
 -- If its in GameOver state then draws a text.
-
 drawGame :: Picture -> Picture -> Picture -> Picture -> GameState -> Picture
 drawGame wolfBMP rockBMP logBMP cloudBMP gs =
-    let camX = wolfX (wolf gs) - 200
-        skyBlue = makeColorI 135 206 235 255  -- RGB for sky blue
-        background = color skyBlue $ rectangleSolid 3000 2000 
-    in case phase gs of
-        StartScreen ->
-            drawTextCentered "Press SPACE to Start" 0
-        Playing ->
+  let camX     = wolfX (wolf gs) - 200
+      skyBlue  = makeColorI 135 206 235 255
+      worldPic =
             translate (-camX) 0 $ pictures
-                [ background
-                , drawWolf wolfBMP (wolf gs)
-                , drawObstacles rockBMP logBMP cloudBMP (obstacles gs)
-                , drawScore (score gs)
-                ]
-        GameOver ->
-            drawTextCentered "Game Over! Press R to Restart" 0
+              [ color skyBlue (rectangleSolid 3000 2000)
+              , drawWolf       wolfBMP (wolf gs)
+              , drawObstacles  rockBMP logBMP cloudBMP (obstacles gs)
+              ]
+  in case phase gs of
+       StartScreen -> drawTextCentered "Press SPACE to Start" 0
+       Playing     -> pictures [ worldPic           
+                               , drawScore (score gs) ] 
+       GameOver    -> drawTextCentered "Game Over! Press R to Restart" 0
+
 
 
 
 drawWolf :: Picture -> Wolf -> Picture
 drawWolf wolfBMP w =
     translate (wolfX w) (wolfY w) $
-    scale 0.15 0.15 
+    scale 1.4 1.4
     wolfBMP
 
 
@@ -131,9 +143,9 @@ drawObstacles rockBMP logBMP cloudBMP = pictures . map (drawObstacle rockBMP log
 drawObstacle :: Picture -> Picture -> Picture -> Obstacle -> Picture
 drawObstacle rockBMP logBMP cloudBMP o =
     let scaledImage = case otype o of
-                         Rock  -> scale 0.3 0.3 rockBMP
-                         Log   -> scale 0.3 0.3 logBMP
-                         Cloud -> scale 0.3 0.3 cloudBMP
+                         Rock  -> scale 0.5 0.5 rockBMP
+                         Log   -> scale 0.4 0.4 logBMP
+                         Cloud -> scale 0.4 0.4 cloudBMP
         yOffset = case otype o of
                     Cloud -> 0  
                     _     -> -20 
@@ -142,8 +154,14 @@ drawObstacle rockBMP logBMP cloudBMP o =
 
 -- Displays score text in top-left.
 drawScore :: Int -> Picture
-drawScore s = translate (-500) 350 $ scale 0.3 0.3 $
-    text ("Score: " ++ show s)
+drawScore s =
+    let txt   = "Score: " ++ show s
+        small = scale 0.3 0.3 . text
+        bold  = pictures [ small txt
+                         , translate 1 0 (small txt) ]
+    in translate (-500) 350           
+       $ color red bold
+
 
 
 -- If the spacebar is pressed while on the start screen, switch to “Playing”.

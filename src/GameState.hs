@@ -18,6 +18,7 @@ data GameState = GameState
     { wolf         :: Wolf
     , obstacles    :: [Obstacle]
     , score        :: Int
+    , scoreClock   :: Float 
     , speed        :: Float
     , phase        :: GamePhase
     , frameCounter :: Int
