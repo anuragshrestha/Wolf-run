@@ -4,22 +4,55 @@
 
 
 module GameLoop where
+
 import Brillo
 import Brillo.Interface.IO.Game
 import Brillo.Data.Picture()
 import Brillo.Data.Color()
 import Linear()
-import Wolf (Wolf(..), WolfStatus(..), jumpVelocity, gravity)
+import Wolf (Wolf(..), WolfStatus(..), jumpVelocity, gravity, defaultWolf)
 import Obstacle (Obstacle(..), ObstacleType(..))
 import System.Random (StdGen, randomR)
 import GameState
 
-
-
 cloudY :: Float
 cloudY = 40  
 
+-- constants only for collision. 
 
+wolfW, wolfHRun, wolfHDuck :: Float
+wolfW = 60      -- wolf's width while running or crouching
+wolfHRun = 60   -- wolf's height when running/jumping
+wolfHDuck = 40  -- wolf's height while crouching
+
+collisionPadding :: ObstacleType -> Float
+collisionPadding Cloud = 0.5
+collisionPadding _     = 10.5
+
+obstacleSize :: ObstacleType -> (Float, Float)
+obstacleSize Rock = (50, 40)
+obstacleSize Log = (65, 35)
+obstacleSize Cloud = (80, 40)
+
+
+--  collision test
+isColliding :: Wolf -> Obstacle -> Bool
+isColliding w o = 
+    let 
+        -- getting obstacle box
+        (oW, oH) = obstacleSize (otype o)
+        -- wolf's height based on status
+        wH       = if status w == Docking then wolfHDuck else wolfHRun
+        -- center to center distances
+        dx       = abs (wolfX w - obsX o)
+        dy       = abs (wolfY w - obsY o)
+        -- collision padding acc to obstacles
+        padding              = collisionPadding (otype o)
+        -- half sizes of each bos
+        halfWidthSum = (wolfW/2 + oW/2 - padding)
+        halfHeightSum = (wH/2 + oH/2 - padding)
+    -- check if overlaps in both axes
+    in dx < halfWidthSum && dy < halfHeightSum
 
 -- If the game is in playing phase then it moves the wolf by a certain distance
 -- and return the updated wolf state
@@ -27,19 +60,20 @@ cloudY = 40
 
 gameStep :: Float -> GameState -> GameState
 gameStep dt gs
-  | phase gs == Playing =
-      let spd  = speed gs + 5 * dt
-          w    = updateWolf dt spd (wolf gs)
+  | phase gs /= Playing = gs
+  | otherwise =
+      let spd          = speed gs + 5 * dt
+          w            = updateWolf dt spd (wolf gs)
 
           -- accumulate time for the 1‑point‑per‑second counter
-          clk' = scoreClock gs + dt
+          clk'         = scoreClock gs + dt
           (sc', clk'') =
               if clk' >= 1
                  then (score gs + 1, clk' - 1)   
                  else (score gs    , clk')      
 
-          fc   = frameCounter gs + 1
-          wolfX' = wolfX w
+          fc           = frameCounter gs + 1
+          wolfX'       = wolfX w
 
           (obs', newLastX, newGen) =
             if wolfX' - lastObstacleX gs >= 600
@@ -49,18 +83,20 @@ gameStep dt gs
                     in (obstacles gs ++ [newObs], wolfX' + 600, g')
                else (obstacles gs, lastObstacleX gs, rng gs)
 
-      in gs { wolf         = w
-            , speed        = spd
-            , score        = sc'
-            , scoreClock   = clk''  
-            , frameCounter = fc
-            , obstacles    = obs'
-            , lastObstacleX = newLastX
-            , rng          = newGen
+          hit          = any (isColliding w) obs'
+        
+        in 
+            if hit 
+                then gs {phase  = GameOver}
+                else gs { wolf      = w
+                , speed         = spd
+                , score         = sc'
+                , scoreClock    = clk''  
+                , frameCounter  = fc
+                , obstacles     = obs'
+                , lastObstacleX = newLastX
+                , rng           = newGen
             }
-
-  | otherwise = gs
-
 
 -- updates the wolf position
 updateWolf :: Float -> Float -> Wolf -> Wolf
@@ -122,7 +158,7 @@ drawGame wolfBMP rockBMP logBMP cloudBMP gs =
        StartScreen -> drawTextCentered "Press SPACE to Start" 0
        Playing     -> pictures [ worldPic           
                                , drawScore (score gs) ] 
-       GameOver    -> drawTextCentered "Game Over! Press R to Restart" 0
+       GameOver    -> drawTextCentered "Game Over! Press r to Restart" 0
 
 
 
@@ -189,13 +225,29 @@ handleEvent (EventKey (Char 's') Down _ _) gs
 handleEvent (EventKey (Char 's') Up _ _) gs
     | phase gs == Playing = gs { wolf = (wolf gs) { status = Running } }
 
+handleEvent (EventKey (Char 'r') Down _ _) gs
+  | phase gs == GameOver =
+      let fresh = GameState
+            { wolf          = defaultWolf
+            , obstacles     = generateObstacles defaultWolf
+            , score         = 0
+            , scoreClock    = 0
+            , speed         = 200
+            , phase         = Playing
+            , frameCounter  = 0
+            , rng           = rng gs
+            , lastObstacleX = 0
+            }
+      in fresh
+
 handleEvent _ gs = gs
 
 
 --	Draws centered black text at given Y coordinate.
 drawTextCentered :: String -> Float -> Picture
 drawTextCentered txt y =
-    translate (-200) y $
-        scale 0.5 0.5 $ 
-        color black $
-            text txt
+  let xOffset = - (fromIntegral (length txt) * 10)
+  in translate xOffset y
+       $ scale 0.5 0.5
+       $ color black
+       $ text txt
