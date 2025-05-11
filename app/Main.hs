@@ -32,18 +32,20 @@ main = do
     gen <- getStdGen  -- generate initial RNG
 
     let initialState = GameState
-          { wolf = defaultWolf
-          , obstacles = []
-          , score = 0
-          , speed = 5
-          , phase = StartScreen
-          , frameCounter = 0
-          , rng = gen
-          }
+            { wolf = defaultWolf
+            , obstacles = generateObstacles defaultWolf
+            , score = 0
+            , speed = 50
+            , phase = StartScreen
+            , frameCounter = 0
+            , rng = gen
+            , lastObstacleX = 1800 
+            }
+    let skyBlue = makeColorI 135 206 235 255
 
     play
-      (InWindow "Wolf Run" (1200, 1200) (100, 100))  
-      white
+      (InWindow "Wolf Run" (1400, 1000) (80, 80))  
+      skyBlue
       60
       initialState
       (drawGame wolfBMP rockBMP logBMP cloudBMP)

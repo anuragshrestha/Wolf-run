@@ -24,12 +24,11 @@ import GameState
 gameStep :: Float -> GameState -> GameState
 gameStep dt gs
   | phase gs == Playing =
-      let w   = updateWolf dt (wolf gs)
-          spd = speed gs + 1
+      let spd = speed gs + 3 * dt  
+          w   = updateWolf dt spd (wolf gs)  
           fc  = frameCounter gs + 1
           wolfX' = wolfX w
 
-          -- Check if we are far enough to spawn a new obstacle
           (obs', newLastX, newGen) =
             if wolfX' - lastObstacleX gs >= 300 then
               let (newType, g') = randomObstacleType (rng gs)
@@ -52,21 +51,22 @@ gameStep dt gs
 
 
 -- updates the wolf position
-updateWolf :: Float -> Wolf -> Wolf
-updateWolf dt w = case status w of
+updateWolf :: Float -> Float -> Wolf -> Wolf
+updateWolf dt spd w = case status w of
     Jumping -> 
         let vy = velocityY w + gravity
             y  = wolfY w + vy
-            x  = wolfX w + speedX
-            speedX = 400 * dt 
+            x  = wolfX w + (spd * 4.8) * dt 
         in if y <= 0
            then w { wolfY = 0, velocityY = 0, status = Running, wolfX = x }
            else w { wolfY = y, velocityY = vy, wolfX = x }
+
     Docking ->
-        let x = wolfX w + 45 * dt
+        let x = wolfX w + spd * dt
         in w { wolfX = x }
+
     Running ->
-        let x = wolfX w + 45 * dt
+        let x = wolfX w + spd * dt
         in w { wolfX = x }
 
 
@@ -97,13 +97,16 @@ randomObstacleType gen =
 
 drawGame :: Picture -> Picture -> Picture -> Picture -> GameState -> Picture
 drawGame wolfBMP rockBMP logBMP cloudBMP gs =
-    let camX = wolfX (wolf gs) - 200 
+    let camX = wolfX (wolf gs) - 200
+        skyBlue = makeColorI 135 206 235 255  -- RGB for sky blue
+        background = color skyBlue $ rectangleSolid 3000 2000 
     in case phase gs of
         StartScreen ->
             drawTextCentered "Press SPACE to Start" 0
         Playing ->
             translate (-camX) 0 $ pictures
-                [ drawWolf wolfBMP (wolf gs)
+                [ background
+                , drawWolf wolfBMP (wolf gs)
                 , drawObstacles rockBMP logBMP cloudBMP (obstacles gs)
                 , drawScore (score gs)
                 ]

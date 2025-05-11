@@ -22,8 +22,7 @@ data GameState = GameState
     , phase        :: GamePhase
     , frameCounter :: Int
     , rng          :: StdGen
+    , lastObstacleX :: Float  
     }
-
-
 
        
