@@ -42,7 +42,7 @@ gameStep dt gs
           wolfX' = wolfX w
 
           (obs', newLastX, newGen) =
-            if wolfX' - lastObstacleX gs >= 400
+            if wolfX' - lastObstacleX gs >= 600
                then let (newType, g') = randomObstacleType (rng gs)
                         newObsY = if newType == Cloud then cloudY else 0
                         newObs  = Obstacle (wolfX' + 800) newObsY newType
