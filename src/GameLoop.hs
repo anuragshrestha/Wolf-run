@@ -40,16 +40,16 @@ isColliding :: Wolf -> Obstacle -> Bool
 isColliding w o = 
     let 
         -- getting obstacle box
-        (oW, oH) = obstacleSize (otype o)
+        (oW, oH)      = obstacleSize (otype o)
         -- wolf's height based on status
-        wH       = if status w == Docking then wolfHDuck else wolfHRun
+        wH            = if status w == Docking then wolfHDuck else wolfHRun
         -- center to center distances
-        dx       = abs (wolfX w - obsX o)
-        dy       = abs (wolfY w - obsY o)
+        dx            = abs (wolfX w - obsX o)
+        dy            = abs (wolfY w - obsY o)
         -- collision padding acc to obstacles
-        padding              = collisionPadding (otype o)
+        padding       = collisionPadding (otype o)
         -- half sizes of each bos
-        halfWidthSum = (wolfW/2 + oW/2 - padding)
+        halfWidthSum  = (wolfW/2 + oW/2 - padding)
         halfHeightSum = (wH/2 + oH/2 - padding)
     -- check if overlaps in both axes
     in dx < halfWidthSum && dy < halfHeightSum
